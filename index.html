@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eef1ec">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zuhause">
+<title>Zuhause – unsere Listen</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1ec; --surface:#ffffff; --ink:#2e3a33; --muted:#7c8a80; --accent:#5e8b6e; --accent-soft:#dce7de;
+  --on-accent:#ffffff; --line:#dde3dc; --done:#a3ada6; --danger:#b4574a;
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#1a201c; --surface:#232b25; --ink:#e6ece7; --muted:#93a198; --accent:#86b394; --accent-soft:#2c3a30;
+    --on-accent:#14201a; --line:#313b34; --done:#68756c; --danger:#d98c7f; color-scheme:dark;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Nunito","Avenir Next","Segoe UI",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+[hidden]{display:none!important}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);padding:14px 0 10px}
+.inner{max-width:560px;margin:0 auto;padding:0 16px}
+.status{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted);margin-bottom:12px;min-height:36px}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--done)}
+.sync.live .dot{background:var(--accent)}
+.sync.warn .dot{background:var(--danger)}
+.share{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:var(--muted);padding:8px 10px;border-radius:12px}
+.share svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.share:active{background:var(--accent-soft)}
+
+.tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;min-width:118px;min-height:56px;padding:8px 18px;border-radius:18px;background:var(--surface);border:1.5px solid var(--line);font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s,color .2s,border-color .2s}
+.tab .count{font-size:13px;font-weight:800;min-width:24px;height:24px;border-radius:12px;padding:0 7px;display:inline-grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.tab.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.tab.on .count{background:rgba(255,255,255,.25);color:var(--on-accent)}
+.tab.plus{flex:0 0 56px;min-width:56px;padding:0;font-size:26px;font-weight:600;color:var(--muted);background:transparent;border-style:dashed}
+
+.row{display:flex;gap:8px;margin-top:10px}
+.field{flex:1;min-width:0;width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;outline:none}
+.field::placeholder{color:var(--muted)}
+.field:focus{border-color:var(--accent)}
+.btn{flex:0 0 auto;min-height:52px;padding:0 20px;border-radius:16px;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:16px}
+.btn:disabled{opacity:.4}
+.btn.ghost{background:transparent;color:var(--muted);padding:0 12px}
+.btn.soft{background:var(--accent-soft);color:var(--ink)}
+.btn.wide{width:100%}
+
+main{padding:8px 0 140px}
+.listname{font-size:28px;font-weight:800;margin:8px 2px 14px;letter-spacing:-.01em}
+.items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:16px;padding:4px;border:1px solid var(--line)}
+.box{flex:0 0 auto;width:48px;height:48px;display:grid;place-items:center}
+.box i{width:26px;height:26px;border-radius:8px;border:2px solid var(--accent);display:grid;place-items:center;transition:background .15s}
+.box svg{width:16px;height:16px;fill:none;stroke:var(--on-accent);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .15s}
+.item.done .box i{background:var(--accent)}
+.item.done .box svg{opacity:1}
+.label{flex:1;min-width:0;text-align:left;padding:10px 4px;display:flex;flex-direction:column;gap:2px}
+.label .text{font-size:17px;line-height:1.35;overflow-wrap:anywhere}
+.label .who{font-size:12px;color:var(--muted)}
+.item.done .text{text-decoration:line-through;text-decoration-thickness:2px;color:var(--done)}
+.trash{flex:0 0 auto;width:48px;height:48px;border-radius:12px;display:grid;place-items:center;color:var(--muted)}
+.trash:active{background:var(--accent-soft);color:var(--danger)}
+.trash svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.donehead{display:flex;align-items:center;justify-content:space-between;margin:28px 2px 10px;gap:8px}
+.donehead h2{margin:0;font-size:16px;font-weight:700;color:var(--muted)}
+.links{display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end}
+.link{font-size:15px;font-weight:600;color:var(--muted);padding:10px;border-radius:10px}
+.link.danger{color:var(--danger)}
+.link:active{background:var(--accent-soft)}
+
+.calm{text-align:center;color:var(--muted);padding:30px 10px;font-size:16px;line-height:1.5}
+.calm .leaf{font-size:34px;display:block;margin-bottom:6px}
+.starters{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.foot{text-align:center;margin-top:34px}
+.note{background:var(--accent-soft);color:var(--ink);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.45;margin:4px 0 14px}
+
+.setup{padding:24px 0}
+.setup h1{font-size:30px;font-weight:800;margin:0 0 8px}
+.setup p{color:var(--muted);font-size:16px;line-height:1.5;margin:0 0 22px}
+.setup label{display:block;font-size:14px;font-weight:700;color:var(--muted);margin:0 0 8px 2px}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;margin:28px 0 18px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.err{color:var(--danger);font-size:14px;margin-top:8px;min-height:1em}
+
+.composer{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bg);border-top:1px solid var(--line);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px))}
+.composer .inner{display:flex;gap:8px}
+
+.sheetbg{position:fixed;inset:0;background:rgba(20,28,22,.35);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom,0px));max-height:90%;overflow:auto}
+.sheet h2{margin:0 0 6px;font-size:22px;font-weight:800}
+.sheet p{margin:0 0 14px;color:var(--muted);font-size:15px;line-height:1.5}
+.sheet .block{margin-bottom:22px}
+.sheet .stack{display:flex;flex-direction:column;gap:8px}
+
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,16px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:16px;padding:10px 10px 10px 18px;display:flex;align-items:center;gap:12px;font-size:15px;z-index:60;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{color:var(--accent-soft);font-weight:800;padding:8px 10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="inner">
+    <div class="status">
+      <span class="sync" id="sync"><span class="dot"></span><span id="syncTxt">verbinde …</span></span>
+      <button class="share" id="shareBtn" hidden><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.6-3.4 3-5.5 6-5.5s5.4 2.1 6 5.5M17 8v6M14 11h6"/></svg>Einladen</button>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="Listen"></nav>
+    <div class="row" id="newlist" hidden>
+      <input class="field" id="newlistInput" type="text" maxlength="30" placeholder="Name der neuen Liste" enterkeyhint="done" autocomplete="off">
+      <button class="btn" id="newlistOk">Anlegen</button>
+      <button class="btn ghost" id="newlistCancel" aria-label="Abbrechen">✕</button>
+    </div>
+  </div>
+</header>
+
+<main><div class="inner" id="content"></div></main>
+
+<footer class="composer" id="composer" hidden>
+  <div class="inner">
+    <input class="field" id="taskInput" type="text" maxlength="200" placeholder="Neuer Eintrag …" enterkeyhint="send" autocomplete="off">
+    <button class="btn" id="taskAdd">Hinzufügen</button>
+  </div>
+</footer>
+
+<div class="sheetbg" id="sheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="block">
+      <h2 id="sheetTitle">Partnerin einladen</h2>
+      <p>Schick diesen Link per WhatsApp. Wer ihn öffnet, sieht und bearbeitet eure Listen live mit. Gib ihn nur an Menschen weiter, die mitmachen sollen.</p>
+      <div class="stack">
+        <input class="field" id="inviteLink" type="text" readonly>
+        <button class="btn wide" id="inviteShare">Link teilen</button>
+        <button class="btn soft wide" id="inviteCopy">Link kopieren</button>
+      </div>
+    </div>
+    <div class="block">
+      <h2>Dein Name</h2>
+      <p>Erscheint bei euren Einträgen als „von …“ und „abgehakt von …“.</p>
+      <div class="row" style="margin-top:0">
+        <input class="field" id="nameInput" type="text" maxlength="20" placeholder="Vorname" autocomplete="given-name">
+        <button class="btn" id="nameSave">Speichern</button>
+      </div>
+    </div>
+    <div class="block" style="text-align:center;margin-bottom:6px">
+      <button class="btn soft wide" id="sheetClose">Schließen</button>
+      <button class="link danger" id="leave" style="margin-top:10px">Haushalt auf diesem Gerät verlassen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"><span id="toastTxt"></span><button id="toastUndo">Rückgängig</button></div>
+
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+  function lsSet(k,v){ try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k,v); } catch(e){} }
+  function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function newCode(){
+    var a = 'abcdefghjkmnpqrstuvwxyz23456789', out = '', r = new Uint32Array(28);
+    (window.crypto || window.msCrypto).getRandomValues(r);
+    for (var i = 0; i < r.length; i++) out += a[r[i] % a.length];
+    return out;
+  }
+  function extractCode(s){
+    var m = String(s || '').trim().match(/(?:k=)?([a-z0-9]{20,})\s*$/i);
+    return m ? m[1].toLowerCase() : null;
+  }
+
+  /* ---------- Zustand ---------- */
+  var code = lsGet('zh_code');
+  var myName = lsGet('zh_name') || '';
+  var myId = lsGet('zh_device') || (function(){ var d = uid(); lsSet('zh_device', d); return d; })();
+  var activeId = lsGet('zh_active');
+  var showDone = lsGet('zh_showDone') !== '0';
+  var backend = null, connector = null, unsub = [];
+  var lists = [], tasks = [], gotLists = false, gotTasks = false, justCreated = false;
+  var confirmListDelete = false, connectError = null;
+
+  // Einladungslink: #k=CODE
+  var hm = location.hash.match(/k=([a-z0-9]{20,})/i);
+  if (hm) {
+    code = hm[1].toLowerCase(); lsSet('zh_code', code);
+    try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
+  }
+
+  function inviteUrl(){ return location.origin + location.pathname + '#k=' + code; }
+  function setSync(cls, text){ $('sync').className = 'sync ' + cls; $('syncTxt').textContent = text; }
+  function fail(e){ console.error(e); setSync('warn', 'Speichern fehlgeschlagen'); }
+
+  /* ---------- Speichern ---------- */
+  var store = {
+    addList: function(name){
+      var id = uid();
+      backend.set('lists', id, { name: name, createdAt: Date.now() }).catch(fail);
+      return id;
+    },
+    removeList: function(id){
+      tasks.filter(function(t){ return t.listId === id; }).forEach(function(t){ backend.remove('tasks', t.id).catch(fail); });
+      backend.remove('lists', id).catch(fail);
+    },
+    addTask: function(text, listId){
+      backend.set('tasks', uid(), { text: text, listId: listId, done: false, createdAt: Date.now(), doneAt: null, by: myName || null, doneBy: null }).catch(fail);
+    },
+    setDone: function(task, done){
+      backend.update('tasks', task.id, { done: done, doneAt: done ? Date.now() : null, doneBy: done ? (myName || null) : null }).catch(fail);
+    },
+    removeTask: function(id){ backend.remove('tasks', id).catch(fail); },
+    restoreTask: function(task){
+      var body = Object.assign({}, task); delete body.id;
+      backend.set('tasks', task.id, body).catch(fail);
+    }
+  };
+
+  /* ---------- Hilfen ---------- */
+  function currentList(){
+    if (!lists.length) return null;
+    for (var i = 0; i < lists.length; i++) if (lists[i].id === activeId) return lists[i];
+    activeId = lists[0].id; return lists[0];
+  }
+  function select(id){ activeId = id; lsSet('zh_active', id); confirmListDelete = false; render(); window.scrollTo(0,0); }
+  function openCount(listId){ return tasks.filter(function(t){ return t.listId === listId && !t.done; }).length; }
+
+  var toastTimer = null, undoAction = null;
+  function toast(text, undo){
+    $('toastTxt').textContent = text; undoAction = undo || null; $('toastUndo').hidden = !undo;
+    $('toast').classList.add('show'); clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ $('toast').classList.remove('show'); undoAction = null; }, 5000);
+  }
+  $('toastUndo').addEventListener('click', function(){ if (undoAction) undoAction(); undoAction = null; $('toast').classList.remove('show'); });
+
+  var ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var ICON_TRASH = '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+
+  /* ---------- Einrichtung (erstes Öffnen) ---------- */
+  function renderSetup(){
+    $('tabs').innerHTML = ''; $('composer').hidden = true; $('shareBtn').hidden = true; $('newlist').hidden = true;
+    setSync('', 'nicht eingerichtet');
+    var c = $('content'); c.innerHTML = '';
+    var s = el('div', 'setup');
+    s.appendChild(el('h1', null, 'Willkommen'));
+    s.appendChild(el('p', null, 'Hier führt ihr eure gemeinsamen Listen, live auf beiden Handys.'));
+
+    s.appendChild(el('label', null, 'Dein Vorname'));
+    var nm = el('input', 'field'); nm.type = 'text'; nm.maxLength = 20; nm.placeholder = 'z. B. Erik'; nm.value = myName; nm.autocomplete = 'given-name';
+    s.appendChild(nm);
+    var create = el('button', 'btn wide', 'Neuen Haushalt anlegen'); create.style.marginTop = '12px';
+    create.addEventListener('click', function(){
+      myName = nm.value.trim(); lsSet('zh_name', myName || null);
+      code = newCode(); lsSet('zh_code', code); justCreated = true; start();
+    });
+    s.appendChild(create);
+
+    s.appendChild(el('div', 'or', 'oder'));
+    s.appendChild(el('label', null, 'Einladungslink einfügen'));
+    var inv = el('input', 'field'); inv.type = 'text'; inv.placeholder = 'Link oder Code'; inv.autocomplete = 'off';
+    s.appendChild(inv);
+    var err = el('div', 'err');
+    var join = el('button', 'btn soft wide', 'Beitreten'); join.style.marginTop = '12px';
+    join.addEventListener('click', function(){
+      var k = extractCode(inv.value);
+      if (!k) { err.textContent = 'Das sieht nicht nach einem Einladungslink aus. Kopiere den ganzen Link aus der Nachricht.'; return; }
+      myName = nm.value.trim(); lsSet('zh_name', myName || null);
+      code = k; lsSet('zh_code', code); start();
+    });
+    s.appendChild(join); s.appendChild(err);
+    c.appendChild(s);
+  }
+
+  /* ---------- Listenansicht ---------- */
+  function renderTabs(cur){
+    var tabs = $('tabs'); tabs.innerHTML = '';
+    lists.forEach(function(l){
+      var b = el('button', 'tab' + (cur && cur.id === l.id ? ' on' : ''));
+      b.appendChild(el('span', null, l.name));
+      var n = openCount(l.id); if (n) b.appendChild(el('span', 'count', String(n)));
+      b.setAttribute('aria-pressed', cur && cur.id === l.id ? 'true' : 'false');
+      b.addEventListener('click', function(){ select(l.id); });
+      tabs.appendChild(b);
+    });
+    var plus = el('button', 'tab plus', '+'); plus.setAttribute('aria-label', 'Neue Liste anlegen');
+    plus.addEventListener('click', openNewList); tabs.appendChild(plus);
+  }
+
+  function itemRow(t){
+    var li = el('li', 'item' + (t.done ? ' done' : ''));
+    var box = el('button', 'box'); box.innerHTML = '<i>' + ICON_CHECK + '</i>';
+    box.setAttribute('aria-label', t.done ? 'Wieder offen setzen' : 'Abhaken');
+    box.addEventListener('click', function(){ store.setDone(t, !t.done); });
+    var label = el('button', 'label');
+    label.appendChild(el('span', 'text', t.text));
+    var who = t.done ? t.doneBy : t.by;
+    if (who) label.appendChild(el('span', 'who', (t.done ? 'abgehakt von ' : 'von ') + who));
+    label.addEventListener('click', function(){ store.setDone(t, !t.done); });
+    var trash = el('button', 'trash'); trash.innerHTML = ICON_TRASH; trash.setAttribute('aria-label', 'Eintrag löschen');
+    trash.addEventListener('click', function(){
+      var copy = Object.assign({}, t); store.removeTask(t.id);
+      toast('Eintrag gelöscht', function(){ store.restoreTask(copy); });
+    });
+    li.appendChild(box); li.appendChild(label); li.appendChild(trash);
+    return li;
+  }
+
+  function render(){
+    if (!code) { renderSetup(); return; }
+    $('shareBtn').hidden = false; $('composer').hidden = false;
+    var cur = currentList();
+    renderTabs(cur);
+    var inp = $('taskInput'), add = $('taskAdd');
+    inp.disabled = !cur; add.disabled = !cur;
+    inp.placeholder = cur ? 'Zu „' + cur.name + '“ hinzufügen …' : 'Erst eine Liste wählen';
+
+    var c = $('content'); c.innerHTML = '';
+    if (connectError) c.appendChild(el('div', 'note', connectError));
+
+    if (!cur) {
+      if (!gotLists) { c.appendChild(el('div', 'calm', 'Listen werden geladen …')); return; }
+      var calm = el('div', 'calm');
+      calm.appendChild(el('span', 'leaf', '🌿'));
+      calm.appendChild(document.createTextNode('Noch keine Liste. Womit wollt ihr starten?'));
+      var st = el('div', 'starters');
+      ['Haushalt', 'Einkaufen'].forEach(function(n){
+        var b = el('button', 'tab', n); b.style.flex = '0 0 auto';
+        b.addEventListener('click', function(){ select(store.addList(n)); });
+        st.appendChild(b);
+      });
+      calm.appendChild(st); c.appendChild(calm); return;
+    }
+
+    c.appendChild(el('h1', 'listname', cur.name));
+    var mine = tasks.filter(function(t){ return t.listId === cur.id; });
+    var open = mine.filter(function(t){ return !t.done; }).sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+    var done = mine.filter(function(t){ return t.done; }).sort(function(a,b){ return (b.doneAt||0) - (a.doneAt||0); });
+
+    if (open.length) {
+      var ul = el('ul', 'items'); open.forEach(function(t){ ul.appendChild(itemRow(t)); }); c.appendChild(ul);
+    } else {
+      var e = el('div', 'calm');
+      e.appendChild(el('span', 'leaf', done.length ? '✨' : '☕'));
+      e.appendChild(document.createTextNode(done.length ? 'Alles erledigt.' : 'Hier ist noch nichts. Trag unten etwas ein.'));
+      c.appendChild(e);
+    }
+
+    if (done.length) {
+      var head = el('div', 'donehead');
+      head.appendChild(el('h2', null, 'Erledigt (' + done.length + ')'));
+      var links = el('div', 'links');
+      var tg = el('button', 'link', showDone ? 'Ausblenden' : 'Anzeigen');
+      tg.addEventListener('click', function(){ showDone = !showDone; lsSet('zh_showDone', showDone ? '1' : '0'); render(); });
+      var clr = el('button', 'link danger', 'Erledigte löschen');
+      clr.addEventListener('click', function(){
+        var gone = done.map(function(t){ return Object.assign({}, t); });
+        gone.forEach(function(t){ store.removeTask(t.id); });
+        toast(gone.length === 1 ? '1 Eintrag gelöscht' : gone.length + ' Einträge gelöscht', function(){ gone.forEach(store.restoreTask); });
+      });
+      links.appendChild(tg); links.appendChild(clr); head.appendChild(links); c.appendChild(head);
+      if (showDone) { var ul2 = el('ul', 'items'); done.forEach(function(t){ ul2.appendChild(itemRow(t)); }); c.appendChild(ul2); }
+    }
+
+    var foot = el('div', 'foot');
+    var del = el('button', 'link danger', confirmListDelete ? 'Liste „' + cur.name + '“ mit allen Einträgen löschen?' : 'Liste löschen');
+    del.addEventListener('click', function(){
+      if (!confirmListDelete) { confirmListDelete = true; render(); return; }
+      confirmListDelete = false; var id = cur.id; activeId = null; store.removeList(id); toast('Liste gelöscht');
+    });
+    foot.appendChild(del);
+    if (confirmListDelete) {
+      var no = el('button', 'link', 'Abbrechen');
+      no.addEventListener('click', function(){ confirmListDelete = false; render(); });
+      foot.appendChild(no);
+    }
+    c.appendChild(foot);
+  }
+
+  /* ---------- Eingaben ---------- */
+  function addTask(){
+    var cur = currentList(), inp = $('taskInput'), v = inp.value.trim();
+    if (!cur || !v || !backend) return;
+    store.addTask(v, cur.id); inp.value = ''; inp.focus();
+  }
+  $('taskAdd').addEventListener('click', addTask);
+  $('taskInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); addTask(); } });
+
+  function openNewList(){ $('newlist').hidden = false; $('newlistInput').value = ''; $('newlistInput').focus(); }
+  function closeNewList(){ $('newlist').hidden = true; }
+  function createList(){
+    var v = $('newlistInput').value.trim(); if (!v || !backend) return;
+    closeNewList(); select(store.addList(v));
+  }
+  $('newlistOk').addEventListener('click', createList);
+  $('newlistCancel').addEventListener('click', closeNewList);
+  $('newlistInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); createList(); }
+    if (e.key === 'Escape') closeNewList();
+  });
+
+  /* ---------- Einladen / Name ---------- */
+  function openSheet(){ $('inviteLink').value = inviteUrl(); $('nameInput').value = myName; $('sheet').hidden = false; }
+  function closeSheet(){ $('sheet').hidden = true; }
+  $('shareBtn').addEventListener('click', openSheet);
+  $('sheetClose').addEventListener('click', closeSheet);
+  $('sheet').addEventListener('click', function(e){ if (e.target === $('sheet')) closeSheet(); });
+  $('inviteShare').addEventListener('click', function(){
+    var url = inviteUrl();
+    if (navigator.share) navigator.share({ title: 'Zuhause – unsere Listen', text: 'Unsere gemeinsamen Listen:', url: url }).catch(function(){});
+    else copyLink();
+  });
+  function copyLink(){
+    var url = inviteUrl();
+    function ok(){ toast('Link kopiert'); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, function(){ $('inviteLink').select(); document.execCommand('copy'); ok(); });
+    else { $('inviteLink').select(); try { document.execCommand('copy'); } catch(e){} ok(); }
+  }
+  $('inviteCopy').addEventListener('click', copyLink);
+  $('nameSave').addEventListener('click', function(){
+    myName = $('nameInput').value.trim(); lsSet('zh_name', myName || null); toast('Name gespeichert');
+  });
+  $('leave').addEventListener('click', function(){
+    if (!confirm('Haushalt auf diesem Gerät verlassen? Eure Listen bleiben erhalten. Zum Zurückkehren brauchst du den Einladungslink.')) return;
+    unsub.forEach(function(u){ try { u(); } catch(e){} }); unsub = [];
+    code = null; lsSet('zh_code', null); backend = null; lists = []; tasks = []; gotLists = gotTasks = false;
+    closeSheet(); render();
+  });
+
+  /* ---------- Verbindung ---------- */
+  function explain(e){
+    var c = e && e.code || '';
+    if (c.indexOf('unauthorized-domain') >= 0) return 'Firebase kennt diese Adresse noch nicht. In Firebase unter Authentication › Einstellungen › Autorisierte Domains die Adresse ' + location.hostname + ' hinzufügen.';
+    if (c.indexOf('operation-not-allowed') >= 0 || c.indexOf('admin-restricted') >= 0) return 'In Firebase ist die anonyme Anmeldung noch nicht aktiviert (Authentication › Anmeldemethode › Anonym).';
+    if (c.indexOf('permission-denied') >= 0) return 'Firebase verweigert den Zugriff. Prüfe die Firestore-Regeln.';
+    return 'Keine Verbindung zum Speicher. Prüfe die Internetverbindung.';
+  }
+
+  function start(){
+    render();
+    if (!connector) { setSync('', 'lädt …'); return; }
+    setSync('', 'verbinde …');
+    connector(code).then(function(b){
+      backend = b; connectError = null;
+      var timer = setTimeout(function(){ if (!(gotLists && gotTasks)) setSync('warn', 'Verbindung dauert …'); }, 10000);
+      function status(meta){
+        if (!(gotLists && gotTasks)) return;
+        clearTimeout(timer);
+        if (meta && meta.fromCache) setSync('warn', 'offline · wird nachgeholt');
+        else setSync('live', 'gemeinsam · live');
+      }
+      function onErr(e){ clearTimeout(timer); connectError = explain(e); setSync('warn', 'keine Verbindung'); render(); }
+      unsub.push(b.subscribe('lists', function(docs, meta){
+        lists = docs.sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+        gotLists = true;
+        if (justCreated && !lists.length && !(meta && meta.fromCache)) {
+          justCreated = false;
+          var first = store.addList('Haushalt'); store.addList('Einkaufen'); activeId = first;
+          setTimeout(openSheet, 400);
+        } else if (lists.length) justCreated = false;
+        status(meta); render();
+      }, onErr));
+      unsub.push(b.subscribe('tasks', function(docs, meta){
+        tasks = docs; gotTasks = true; status(meta); render();
+      }, onErr));
+    }).catch(function(e){ connectError = explain(e); setSync('warn', 'keine Verbindung'); render(); });
+  }
+
+  window.ZH = {
+    setConnector: function(fn){ connector = fn; if (code) start(); },
+    connectorFailed: function(){ connectError = 'Die Speicher-Bibliothek konnte nicht geladen werden. Prüfe die Internetverbindung und öffne die App neu.'; setSync('warn', 'keine Verbindung'); render(); }
+  };
+
+  render();
+  if (code) setSync('', 'lädt …');
+  setTimeout(function(){ if (!connector && code) window.ZH.connectorFailed(); }, 15000);
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
+})();
+</script>
+
+<!-- Firebase-Anbindung -->
+<script type="module" id="firebase-connector">
+  const firebaseConfig = {
+    apiKey: "AIzaSyDYGIPqfZF6yEfUwMJyAAnaNm_24nnaPwo",
+    authDomain: "zuhause-listen.firebaseapp.com",
+    projectId: "zuhause-listen",
+    storageBucket: "zuhause-listen.firebasestorage.app",
+    messagingSenderId: "329895608813",
+    appId: "1:329895608813:web:52d9d5ee646bf347f3a7e4"
+  };
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const { getAuth, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+    const fsm = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    let db;
+    try {
+      db = fsm.initializeFirestore(app, { localCache: fsm.persistentLocalCache({ tabManager: fsm.persistentMultipleTabManager() }) });
+    } catch (e) {
+      db = fsm.getFirestore(app);
+    }
+    window.ZH.setConnector(async function (code) {
+      if (!auth.currentUser) await signInAnonymously(auth);
+      const path = (col, id) => id ? fsm.doc(db, "haushalte", code, col, id) : fsm.collection(db, "haushalte", code, col);
+      return {
+        subscribe(col, cb, err) {
+          return fsm.onSnapshot(path(col), { includeMetadataChanges: true },
+            s => cb(s.docs.map(d => Object.assign({}, d.data(), { id: d.id })), { fromCache: s.metadata.fromCache }),
+            err);
+        },
+        set: (col, id, body) => fsm.setDoc(path(col, id), body),
+        update: (col, id, patch) => fsm.updateDoc(path(col, id), patch),
+        remove: (col, id) => fsm.deleteDoc(path(col, id))
+      };
+    });
+  } catch (e) {
+    console.error(e);
+    window.ZH.connectorFailed();
+  }
+</script>
+</body>
+</html>
