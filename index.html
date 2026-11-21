@@ -115,6 +115,28 @@ main{padding:8px 0 140px}
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,16px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:16px;padding:10px 10px 10px 18px;display:flex;align-items:center;gap:12px;font-size:15px;z-index:60;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px)}
 .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
 .toast button{color:var(--accent-soft);font-weight:800;padding:8px 10px}
+.tab.ov{min-width:0;flex:0 0 auto;padding:8px 16px}
+.month{display:flex;align-items:center;justify-content:space-between;margin:8px 0 16px}
+.month h1{font-size:26px;font-weight:800;margin:0;text-align:center;flex:1}
+.month button{width:48px;height:48px;border-radius:14px;font-size:24px;color:var(--muted);background:var(--surface);border:1px solid var(--line)}
+.month button:disabled{opacity:.35}
+.people{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.person{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.person .nm{font-size:15px;font-weight:700;color:var(--muted)}
+.person .big{font-size:40px;font-weight:800;line-height:1.1;margin-top:4px}
+.person .sub{font-size:13px;color:var(--muted)}
+.split{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line);margin:4px 0 6px}
+.split span{display:block;height:100%}
+.legend{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:8px;gap:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.ovsec{margin:26px 2px 10px;font-size:16px;font-weight:700;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:4px 14px}
+.line{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.line:last-child{border-bottom:0}
+.line .what{flex:1;min-width:0;font-size:16px;overflow-wrap:anywhere}
+.line .times{font-weight:800;font-size:16px;white-space:nowrap}
+.chips2{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.chip2{font-size:12px;font-weight:700;border-radius:8px;padding:2px 7px;color:var(--ink);background:var(--accent-soft)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -226,7 +248,15 @@ main{padding:8px 0 140px}
       backend.set('tasks', uid(), { text: text, listId: listId, done: false, createdAt: Date.now(), doneAt: null, by: myName || null, doneBy: null }).catch(fail);
     },
     setDone: function(task, done){
-      backend.update('tasks', task.id, { done: done, doneAt: done ? Date.now() : null, doneBy: done ? (myName || null) : null }).catch(fail);
+      var now = Date.now();
+      if (done) {
+        var evId = uid();
+        backend.set('events', evId, { text: task.text, key: normKey(task.text), listId: task.listId, by: myName || null, at: now }).catch(fail);
+        backend.update('tasks', task.id, { done: true, doneAt: now, doneBy: myName || null, eventId: evId }).catch(fail);
+      } else {
+        if (task.eventId) backend.remove('events', task.eventId).catch(fail);
+        backend.update('tasks', task.id, { done: false, doneAt: null, doneBy: null, eventId: null }).catch(fail);
+      }
     },
     removeTask: function(id){ backend.remove('tasks', id).catch(fail); },
     restoreTask: function(task){
@@ -236,7 +266,24 @@ main{padding:8px 0 140px}
   };
 
   /* ---------- Hilfen ---------- */
+  var OV = '__overview';
+  var ovOffset = 0, events = [], gotEvents = false, unsubEvents = null;
+  function normKey(s){ return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+  function monthRange(off){
+    var n = new Date(), a = new Date(n.getFullYear(), n.getMonth() + off, 1), b = new Date(n.getFullYear(), n.getMonth() + off + 1, 1);
+    return { from: a.getTime(), to: b.getTime(), label: a.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }) };
+  }
+  function subscribeEvents(){
+    if (!backend) return;
+    if (unsubEvents) { try { unsubEvents(); } catch(e){} }
+    gotEvents = false; events = [];
+    var r = monthRange(ovOffset);
+    unsubEvents = backend.subscribeRange('events', 'at', r.from, r.to, function(docs){
+      events = docs; gotEvents = true; if (activeId === OV) render();
+    }, function(e){ console.error(e); gotEvents = true; connectError = explain(e); if (activeId === OV) render(); });
+  }
   function currentList(){
+    if (activeId === OV) return null;
     if (!lists.length) return null;
     for (var i = 0; i < lists.length; i++) if (lists[i].id === activeId) return lists[i];
     activeId = lists[0].id; return lists[0];
@@ -293,6 +340,12 @@ main{padding:8px 0 140px}
   /* ---------- Listenansicht ---------- */
   function renderTabs(cur){
     var tabs = $('tabs'); tabs.innerHTML = '';
+    if (lists.length) {
+      var ov = el('button', 'tab ov' + (activeId === OV ? ' on' : ''), 'Übersicht');
+      ov.setAttribute('aria-pressed', activeId === OV ? 'true' : 'false');
+      ov.addEventListener('click', function(){ ovOffset = 0; subscribeEvents(); select(OV); });
+      tabs.appendChild(ov);
+    }
     lists.forEach(function(l){
       var b = el('button', 'tab' + (cur && cur.id === l.id ? ' on' : ''));
       b.appendChild(el('span', null, l.name));
@@ -327,6 +380,8 @@ main{padding:8px 0 140px}
   function render(){
     if (!code) { renderSetup(); return; }
     $('shareBtn').hidden = false; $('composer').hidden = false;
+    if (activeId === OV && lists.length) { renderOverview(); return; }
+    if (activeId === OV) activeId = null;
     var cur = currentList();
     renderTabs(cur);
     var inp = $('taskInput'), add = $('taskAdd');
@@ -395,6 +450,120 @@ main{padding:8px 0 140px}
     c.appendChild(foot);
   }
 
+  /* ---------- Übersicht (Monat) ---------- */
+  var PCOLORS = ['var(--accent)', '#d39a5b', '#7d8fc4', '#c27a9a', '#8a9a5b'];
+  function renderOverview(){
+    renderTabs(null);
+    $('composer').hidden = true; $('newlist').hidden = true;
+    var c = $('content'); c.innerHTML = '';
+    if (connectError) c.appendChild(el('div', 'note', connectError));
+    var r = monthRange(ovOffset);
+
+    var mh = el('div', 'month');
+    var prev = el('button', null, '‹'); prev.setAttribute('aria-label', 'Vormonat');
+    prev.addEventListener('click', function(){ ovOffset--; subscribeEvents(); render(); });
+    var next = el('button', null, '›'); next.setAttribute('aria-label', 'Nächster Monat'); next.disabled = ovOffset >= 0;
+    next.addEventListener('click', function(){ if (ovOffset < 0) { ovOffset++; subscribeEvents(); render(); } });
+    mh.appendChild(prev); mh.appendChild(el('h1', null, r.label)); mh.appendChild(next);
+    c.appendChild(mh);
+
+    if (!gotEvents) { c.appendChild(el('div', 'calm', 'Wird geladen …')); return; }
+
+    // Ereignisse + ältere Häkchen von vor dieser Funktion (ohne Protokoll)
+    var seen = {}, evs = [];
+    events.forEach(function(e){ seen[e.id] = 1; evs.push(e); });
+    tasks.forEach(function(t){
+      if (t.done && !t.eventId && t.doneAt >= r.from && t.doneAt < r.to)
+        evs.push({ id: 'legacy-' + t.id, text: t.text, key: normKey(t.text), listId: t.listId, by: t.doneBy, at: t.doneAt });
+    });
+
+    if (!evs.length) {
+      var e0 = el('div', 'calm'); e0.appendChild(el('span', 'leaf', '🗓️'));
+      e0.appendChild(document.createTextNode(ovOffset === 0 ? 'In diesem Monat wurde noch nichts abgehakt.' : 'In diesem Monat wurde nichts abgehakt.'));
+      c.appendChild(e0); return;
+    }
+
+    var NONAME = 'Ohne Namen';
+    var per = {};
+    evs.forEach(function(e){ var n = e.by || NONAME; per[n] = (per[n] || 0) + 1; });
+    var people = Object.keys(per).sort(function(a,b){
+      if (a === myName) return -1; if (b === myName) return 1;
+      if (a === NONAME) return 1; if (b === NONAME) return -1;
+      return a.localeCompare(b, 'de');
+    });
+    var color = {}; people.forEach(function(p, i){ color[p] = PCOLORS[i % PCOLORS.length]; });
+    var total = evs.length;
+
+    var grid = el('div', 'people');
+    people.forEach(function(p){
+      var card = el('div', 'person');
+      var nm = el('div', 'nm'); var dot = el('i'); dot.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:' + color[p];
+      nm.appendChild(dot); nm.appendChild(document.createTextNode(p));
+      card.appendChild(nm);
+      card.appendChild(el('div', 'big', String(per[p])));
+      card.appendChild(el('div', 'sub', (per[p] === 1 ? 'Aufgabe' : 'Aufgaben') + ' erledigt · ' + Math.round(per[p] / total * 100) + ' %'));
+      grid.appendChild(card);
+    });
+    c.appendChild(grid);
+
+    var split = el('div', 'split');
+    people.forEach(function(p){ var s = el('span'); s.style.width = (per[p] / total * 100) + '%'; s.style.background = color[p]; split.appendChild(s); });
+    c.appendChild(split);
+    c.appendChild(el('div', 'legend', 'Insgesamt ' + total + ' erledigt'));
+
+    // Nach Liste
+    var byList = {};
+    evs.forEach(function(e){
+      var k = e.listId || '?'; byList[k] = byList[k] || { total: 0, per: {} };
+      byList[k].total++; var n = e.by || NONAME; byList[k].per[n] = (byList[k].per[n] || 0) + 1;
+    });
+    var listName = {}; lists.forEach(function(l){ listName[l.id] = l.name; });
+    var lkeys = Object.keys(byList).sort(function(a,b){ return byList[b].total - byList[a].total; });
+    if (lkeys.length) {
+      c.appendChild(el('div', 'ovsec', 'Nach Liste'));
+      var lc = el('div', 'card');
+      lkeys.forEach(function(k){ lc.appendChild(lineRow(listName[k] || 'Gelöschte Liste', byList[k].total, byList[k].per, people, color)); });
+      c.appendChild(lc);
+    }
+
+    // Tätigkeiten, gruppiert nach Text
+    var groups = {};
+    evs.forEach(function(e){
+      var k = e.key || normKey(e.text); var g = groups[k] = groups[k] || { label: e.text, at: 0, total: 0, per: {} };
+      g.total++; var n = e.by || NONAME; g.per[n] = (g.per[n] || 0) + 1;
+      if ((e.at || 0) > g.at) { g.at = e.at || 0; g.label = e.text; }
+    });
+    var gk = Object.keys(groups);
+    var rep = gk.filter(function(k){ return groups[k].total > 1; }).sort(function(a,b){ return groups[b].total - groups[a].total || groups[a].label.localeCompare(groups[b].label, 'de'); });
+    var once = gk.filter(function(k){ return groups[k].total === 1; }).sort(function(a,b){ return groups[b].at - groups[a].at; });
+    if (rep.length) {
+      c.appendChild(el('div', 'ovsec', 'Wiederholt erledigt'));
+      var rc = el('div', 'card');
+      rep.forEach(function(k){ rc.appendChild(lineRow(groups[k].label, groups[k].total, groups[k].per, people, color)); });
+      c.appendChild(rc);
+    }
+    if (once.length) {
+      c.appendChild(el('div', 'ovsec', 'Einmal erledigt'));
+      var oc = el('div', 'card');
+      once.forEach(function(k){ oc.appendChild(lineRow(groups[k].label, 1, groups[k].per, people, color)); });
+      c.appendChild(oc);
+    }
+  }
+  function lineRow(label, n, per, people, color){
+    var row = el('div', 'line');
+    var w = el('div', 'what'); w.appendChild(el('div', null, label));
+    var chips = el('div', 'chips2');
+    people.forEach(function(p){
+      if (!per[p]) return;
+      var ch = el('span', 'chip2', p + ' ' + per[p] + '×');
+      ch.style.boxShadow = 'inset 3px 0 0 ' + color[p];
+      chips.appendChild(ch);
+    });
+    w.appendChild(chips);
+    row.appendChild(w); row.appendChild(el('div', 'times', n + '×'));
+    return row;
+  }
+
   /* ---------- Eingaben ---------- */
   function addTask(){
     var cur = currentList(), inp = $('taskInput'), v = inp.value.trim();
@@ -441,6 +610,7 @@ main{padding:8px 0 140px}
   $('leave').addEventListener('click', function(){
     if (!confirm('Haushalt auf diesem Gerät verlassen? Eure Listen bleiben erhalten. Zum Zurückkehren brauchst du den Einladungslink.')) return;
     unsub.forEach(function(u){ try { u(); } catch(e){} }); unsub = [];
+    if (unsubEvents) { try { unsubEvents(); } catch(e){} unsubEvents = null; }
     code = null; lsSet('zh_code', null); backend = null; lists = []; tasks = []; gotLists = gotTasks = false;
     closeSheet(); render();
   });
@@ -460,6 +630,7 @@ main{padding:8px 0 140px}
     setSync('', 'verbinde …');
     connector(code).then(function(b){
       backend = b; connectError = null;
+      ovOffset = 0; subscribeEvents();
       var timer = setTimeout(function(){ if (!(gotLists && gotTasks)) setSync('warn', 'Verbindung dauert …'); }, 10000);
       function status(meta){
         if (!(gotLists && gotTasks)) return;
@@ -529,6 +700,10 @@ main{padding:8px 0 140px}
           return fsm.onSnapshot(path(col), { includeMetadataChanges: true },
             s => cb(s.docs.map(d => Object.assign({}, d.data(), { id: d.id })), { fromCache: s.metadata.fromCache }),
             err);
+        },
+        subscribeRange(col, field, from, to, cb, err) {
+          const q = fsm.query(path(col), fsm.where(field, ">=", from), fsm.where(field, "<", to));
+          return fsm.onSnapshot(q, s => cb(s.docs.map(d => Object.assign({}, d.data(), { id: d.id }))), err);
         },
         set: (col, id, body) => fsm.setDoc(path(col, id), body),
         update: (col, id, patch) => fsm.updateDoc(path(col, id), patch),
