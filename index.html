@@ -137,6 +137,29 @@ main{padding:8px 0 140px}
 .line .times{font-weight:800;font-size:16px;white-space:nowrap}
 .chips2{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
 .chip2{font-size:12px;font-weight:700;border-radius:8px;padding:2px 7px;color:var(--ink);background:var(--accent-soft)}
+.tab.small{min-width:0;flex:0 0 auto;min-height:44px;font-size:15px;padding:6px 14px;border-radius:14px}
+.fchips{margin:0 0 14px}
+.pdot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:0}
+.tblwrap{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th{font-size:13px;color:var(--muted);font-weight:700;text-align:right;padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;-webkit-user-select:none}
+.tbl th .thin{padding-bottom:3px}
+.tbl th .arr{margin-left:4px;color:var(--accent)}
+.tbl th.l,.tbl td.l{text-align:left}
+.tbl td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl td.l{white-space:normal;overflow-wrap:anywhere;min-width:120px}
+.tbl td.sum,.tbl th.sum{font-weight:800;color:var(--ink)}
+.tbl tbody tr.r{cursor:pointer}
+.tbl tbody tr.r:active{background:var(--accent-soft)}
+.tbl td.lead{font-weight:800;color:var(--accent)}
+.tbl td.zero{color:var(--done)}
+.tbl tfoot td{font-weight:800;border-bottom:0;background:var(--accent-soft)}
+.tbl .chev{color:var(--muted);margin-right:8px;display:inline-block;transition:transform .15s;font-size:12px}
+.tbl tr.open .chev{transform:rotate(90deg)}
+.tbl tr.detail td{background:var(--bg);text-align:left;padding:8px 12px 12px;white-space:normal}
+.dlist{display:flex;flex-direction:column;gap:6px}
+.dline{font-size:14px;color:var(--muted)}
+.hint{font-size:13px;color:var(--muted);text-align:center;margin-top:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -452,6 +475,10 @@ main{padding:8px 0 140px}
 
   /* ---------- Übersicht (Monat) ---------- */
   var PCOLORS = ['var(--accent)', '#d39a5b', '#7d8fc4', '#c27a9a', '#8a9a5b'];
+  var NONAME = 'Ohne Namen';
+  var ovFilter = 'all', ovSort = { col: '__total', dir: -1 }, ovOpen = null;
+  function fmtDay(ts){ return new Date(ts).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }); }
+
   function renderOverview(){
     renderTabs(null);
     $('composer').hidden = true; $('newlist').hidden = true;
@@ -461,107 +488,175 @@ main{padding:8px 0 140px}
 
     var mh = el('div', 'month');
     var prev = el('button', null, '‹'); prev.setAttribute('aria-label', 'Vormonat');
-    prev.addEventListener('click', function(){ ovOffset--; subscribeEvents(); render(); });
+    prev.addEventListener('click', function(){ ovOffset--; ovOpen = null; subscribeEvents(); render(); });
     var next = el('button', null, '›'); next.setAttribute('aria-label', 'Nächster Monat'); next.disabled = ovOffset >= 0;
-    next.addEventListener('click', function(){ if (ovOffset < 0) { ovOffset++; subscribeEvents(); render(); } });
+    next.addEventListener('click', function(){ if (ovOffset < 0) { ovOffset++; ovOpen = null; subscribeEvents(); render(); } });
     mh.appendChild(prev); mh.appendChild(el('h1', null, r.label)); mh.appendChild(next);
     c.appendChild(mh);
 
     if (!gotEvents) { c.appendChild(el('div', 'calm', 'Wird geladen …')); return; }
 
-    // Ereignisse + ältere Häkchen von vor dieser Funktion (ohne Protokoll)
-    var seen = {}, evs = [];
-    events.forEach(function(e){ seen[e.id] = 1; evs.push(e); });
+    var all = events.slice();
     tasks.forEach(function(t){
       if (t.done && !t.eventId && t.doneAt >= r.from && t.doneAt < r.to)
-        evs.push({ id: 'legacy-' + t.id, text: t.text, key: normKey(t.text), listId: t.listId, by: t.doneBy, at: t.doneAt });
+        all.push({ id: 'legacy-' + t.id, text: t.text, key: normKey(t.text), listId: t.listId, by: t.doneBy, at: t.doneAt });
     });
-
-    if (!evs.length) {
+    if (!all.length) {
       var e0 = el('div', 'calm'); e0.appendChild(el('span', 'leaf', '🗓️'));
       e0.appendChild(document.createTextNode(ovOffset === 0 ? 'In diesem Monat wurde noch nichts abgehakt.' : 'In diesem Monat wurde nichts abgehakt.'));
       c.appendChild(e0); return;
     }
 
-    var NONAME = 'Ohne Namen';
-    var per = {};
-    evs.forEach(function(e){ var n = e.by || NONAME; per[n] = (per[n] || 0) + 1; });
-    var people = Object.keys(per).sort(function(a,b){
+    // Personen (über den ganzen Monat, damit Farben und Spalten stabil bleiben)
+    var pset = {}; all.forEach(function(e){ pset[e.by || NONAME] = 1; });
+    var people = Object.keys(pset).sort(function(a,b){
       if (a === myName) return -1; if (b === myName) return 1;
       if (a === NONAME) return 1; if (b === NONAME) return -1;
       return a.localeCompare(b, 'de');
     });
     var color = {}; people.forEach(function(p, i){ color[p] = PCOLORS[i % PCOLORS.length]; });
+
+    // Listen
+    var lname = {}; lists.forEach(function(l){ lname[l.id] = l.name; });
+    var lcount = {}; all.forEach(function(e){ var k = e.listId || '?'; lcount[k] = (lcount[k] || 0) + 1; });
+    var lids = lists.map(function(l){ return l.id; }).filter(function(id){ return lcount[id]; });
+    Object.keys(lcount).forEach(function(k){ if (lids.indexOf(k) < 0) lids.push(k); });
+    if (ovFilter !== 'all' && lids.indexOf(ovFilter) < 0) ovFilter = 'all';
+    function listLabel(id){ return lname[id] || 'Gelöschte Liste'; }
+
+    // Filter
+    var fc = el('div', 'tabs fchips');
+    function fbtn(id, label, n){
+      var b = el('button', 'tab small' + (ovFilter === id ? ' on' : ''));
+      b.appendChild(el('span', null, label)); b.appendChild(el('span', 'count', String(n)));
+      b.addEventListener('click', function(){ ovFilter = id; ovOpen = null; render(); });
+      fc.appendChild(b);
+    }
+    fbtn('all', 'Alle', all.length);
+    lids.forEach(function(id){ fbtn(id, listLabel(id), lcount[id]); });
+    c.appendChild(fc);
+
+    var evs = ovFilter === 'all' ? all : all.filter(function(e){ return (e.listId || '?') === ovFilter; });
+    var per = {}; people.forEach(function(p){ per[p] = 0; });
+    evs.forEach(function(e){ per[e.by || NONAME]++; });
     var total = evs.length;
 
+    // Personenkarten
     var grid = el('div', 'people');
     people.forEach(function(p){
       var card = el('div', 'person');
-      var nm = el('div', 'nm'); var dot = el('i'); dot.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:' + color[p];
+      var nm = el('div', 'nm'); var dot = el('i', 'pdot'); dot.style.background = color[p];
       nm.appendChild(dot); nm.appendChild(document.createTextNode(p));
       card.appendChild(nm);
       card.appendChild(el('div', 'big', String(per[p])));
-      card.appendChild(el('div', 'sub', (per[p] === 1 ? 'Aufgabe' : 'Aufgaben') + ' erledigt · ' + Math.round(per[p] / total * 100) + ' %'));
+      card.appendChild(el('div', 'sub', 'erledigt · ' + (total ? Math.round(per[p] / total * 100) : 0) + ' %'));
       grid.appendChild(card);
     });
     c.appendChild(grid);
-
     var split = el('div', 'split');
-    people.forEach(function(p){ var s = el('span'); s.style.width = (per[p] / total * 100) + '%'; s.style.background = color[p]; split.appendChild(s); });
+    people.forEach(function(p){ if (!per[p]) return; var sp = el('span'); sp.style.width = (per[p] / total * 100) + '%'; sp.style.background = color[p]; split.appendChild(sp); });
     c.appendChild(split);
-    c.appendChild(el('div', 'legend', 'Insgesamt ' + total + ' erledigt'));
+    c.appendChild(el('div', 'legend', total + ' erledigt' + (ovFilter === 'all' ? ' insgesamt' : ' in „' + listLabel(ovFilter) + '“')));
 
-    // Nach Liste
-    var byList = {};
-    evs.forEach(function(e){
-      var k = e.listId || '?'; byList[k] = byList[k] || { total: 0, per: {} };
-      byList[k].total++; var n = e.by || NONAME; byList[k].per[n] = (byList[k].per[n] || 0) + 1;
-    });
-    var listName = {}; lists.forEach(function(l){ listName[l.id] = l.name; });
-    var lkeys = Object.keys(byList).sort(function(a,b){ return byList[b].total - byList[a].total; });
-    if (lkeys.length) {
-      c.appendChild(el('div', 'ovsec', 'Nach Liste'));
-      var lc = el('div', 'card');
-      lkeys.forEach(function(k){ lc.appendChild(lineRow(listName[k] || 'Gelöschte Liste', byList[k].total, byList[k].per, people, color)); });
-      c.appendChild(lc);
+    // Listen im Vergleich (nur bei „Alle“)
+    if (ovFilter === 'all' && lids.length > 1) {
+      c.appendChild(el('div', 'ovsec', 'Listen im Vergleich'));
+      var rowsL = lids.map(function(id){
+        var pp = {}; people.forEach(function(p){ pp[p] = 0; });
+        all.forEach(function(e){ if ((e.listId || '?') === id) pp[e.by || NONAME]++; });
+        return { label: listLabel(id), per: pp, total: lcount[id], id: id };
+      });
+      c.appendChild(buildTable('Liste', rowsL, people, color, function(row){ ovFilter = row.id; ovOpen = null; render(); window.scrollTo(0,0); }, null, true));
     }
 
-    // Tätigkeiten, gruppiert nach Text
+    // Tätigkeiten
     var groups = {};
     evs.forEach(function(e){
-      var k = e.key || normKey(e.text); var g = groups[k] = groups[k] || { label: e.text, at: 0, total: 0, per: {} };
-      g.total++; var n = e.by || NONAME; g.per[n] = (g.per[n] || 0) + 1;
+      var k = e.key || normKey(e.text);
+      var g = groups[k] = groups[k] || { key: k, label: e.text, at: 0, total: 0, per: {}, items: [] };
+      people.forEach(function(p){ if (g.per[p] == null) g.per[p] = 0; });
+      g.total++; g.per[e.by || NONAME]++; g.items.push(e);
       if ((e.at || 0) > g.at) { g.at = e.at || 0; g.label = e.text; }
     });
-    var gk = Object.keys(groups);
-    var rep = gk.filter(function(k){ return groups[k].total > 1; }).sort(function(a,b){ return groups[b].total - groups[a].total || groups[a].label.localeCompare(groups[b].label, 'de'); });
-    var once = gk.filter(function(k){ return groups[k].total === 1; }).sort(function(a,b){ return groups[b].at - groups[a].at; });
-    if (rep.length) {
-      c.appendChild(el('div', 'ovsec', 'Wiederholt erledigt'));
-      var rc = el('div', 'card');
-      rep.forEach(function(k){ rc.appendChild(lineRow(groups[k].label, groups[k].total, groups[k].per, people, color)); });
-      c.appendChild(rc);
-    }
-    if (once.length) {
-      c.appendChild(el('div', 'ovsec', 'Einmal erledigt'));
-      var oc = el('div', 'card');
-      once.forEach(function(k){ oc.appendChild(lineRow(groups[k].label, 1, groups[k].per, people, color)); });
-      c.appendChild(oc);
-    }
+    var rows = Object.keys(groups).map(function(k){ return groups[k]; });
+    c.appendChild(el('div', 'ovsec', 'Tätigkeiten' + (ovFilter === 'all' ? '' : ' in „' + listLabel(ovFilter) + '“')));
+    c.appendChild(buildTable('Tätigkeit', rows, people, color, function(row){ ovOpen = ovOpen === row.key ? null : row.key; render(); }, function(row){
+      var d = el('div', 'dlist');
+      row.items.slice().sort(function(a,b){ return (b.at||0) - (a.at||0); }).forEach(function(e){
+        var line = el('div', 'dline');
+        var dot = el('i', 'pdot'); dot.style.background = color[e.by || NONAME];
+        line.appendChild(dot);
+        line.appendChild(el('span', null, fmtDay(e.at) + ' · ' + (e.by || NONAME) + (ovFilter === 'all' ? ' · ' + listLabel(e.listId || '?') : '')));
+        d.appendChild(line);
+      });
+      return d;
+    }, false));
+    c.appendChild(el('div', 'hint', 'Tipp auf eine Spalte sortiert, Tipp auf eine Zeile zeigt die Tage.'));
   }
-  function lineRow(label, n, per, people, color){
-    var row = el('div', 'line');
-    var w = el('div', 'what'); w.appendChild(el('div', null, label));
-    var chips = el('div', 'chips2');
-    people.forEach(function(p){
-      if (!per[p]) return;
-      var ch = el('span', 'chip2', p + ' ' + per[p] + '×');
-      ch.style.boxShadow = 'inset 3px 0 0 ' + color[p];
-      chips.appendChild(ch);
+
+  function buildTable(firstCol, rows, people, color, onRow, detail, isLists){
+    var sorted = rows.slice().sort(function(a,b){
+      var k = ovSort.col, va, vb;
+      if (isLists) { va = b.total; vb = a.total; return va - vb; }
+      if (k === '__label') return a.label.localeCompare(b.label, 'de') * -ovSort.dir;
+      va = k === '__total' ? a.total : (a.per[k] || 0);
+      vb = k === '__total' ? b.total : (b.per[k] || 0);
+      return (va - vb) * ovSort.dir || b.total - a.total || a.label.localeCompare(b.label, 'de');
     });
-    w.appendChild(chips);
-    row.appendChild(w); row.appendChild(el('div', 'times', n + '×'));
-    return row;
+    var wrap = el('div', 'tblwrap'), t = el('table', 'tbl');
+    var thead = el('thead'), hr = el('tr');
+    function th(label, key, cls, col){
+      var h = el('th', cls || '');
+      var inner = el('span', 'thin', label);
+      if (col) inner.style.boxShadow = 'inset 0 -3px 0 ' + col;
+      h.appendChild(inner);
+      if (!isLists) {
+        if (ovSort.col === key) h.appendChild(el('span', 'arr', key === '__label' ? (ovSort.dir < 0 ? '↓' : '↑') : (ovSort.dir < 0 ? '↓' : '↑')));
+        h.addEventListener('click', function(){
+          if (ovSort.col === key) ovSort.dir = -ovSort.dir; else { ovSort.col = key; ovSort.dir = key === '__label' ? 1 : -1; }
+          render();
+        });
+      }
+      hr.appendChild(h);
+    }
+    th(firstCol, '__label', 'l');
+    people.forEach(function(p){ th(p, p, '', color[p]); });
+    th('Σ', '__total', 'sum');
+    thead.appendChild(hr); t.appendChild(thead);
+
+    var tb = el('tbody'), sums = {}, grand = 0;
+    people.forEach(function(p){ sums[p] = 0; });
+    sorted.forEach(function(row){
+      var open = detail && ovOpen === row.key;
+      var tr = el('tr', 'r' + (open ? ' open' : ''));
+      var td0 = el('td', 'l');
+      td0.appendChild(el('span', 'chev', isLists ? '›' : '▸'));
+      td0.appendChild(document.createTextNode(row.label));
+      tr.appendChild(td0);
+      var max = 0; people.forEach(function(p){ max = Math.max(max, row.per[p] || 0); });
+      var leaders = people.filter(function(p){ return (row.per[p] || 0) === max; }).length;
+      people.forEach(function(p){
+        var v = row.per[p] || 0; sums[p] += v;
+        var cls = v === 0 ? 'zero' : (v === max && leaders === 1 && people.length > 1 ? 'lead' : '');
+        tr.appendChild(el('td', cls, v ? String(v) : '–'));
+      });
+      grand += row.total;
+      tr.appendChild(el('td', 'sum', String(row.total)));
+      tr.addEventListener('click', function(){ onRow(row); });
+      tb.appendChild(tr);
+      if (open) {
+        var dr = el('tr', 'detail'), dtd = el('td');
+        dtd.colSpan = people.length + 2; dtd.appendChild(detail(row)); dr.appendChild(dtd); tb.appendChild(dr);
+      }
+    });
+    t.appendChild(tb);
+    var tf = el('tfoot'), fr = el('tr');
+    fr.appendChild(el('td', 'l', 'Summe'));
+    people.forEach(function(p){ fr.appendChild(el('td', '', String(sums[p]))); });
+    fr.appendChild(el('td', 'sum', String(grand)));
+    tf.appendChild(fr); t.appendChild(tf);
+    wrap.appendChild(t);
+    return wrap;
   }
 
   /* ---------- Eingaben ---------- */
